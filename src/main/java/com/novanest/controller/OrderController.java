@@ -2,6 +2,7 @@ package com.novanest.controller;
 
 import com.novanest.model.*;
 import com.novanest.repository.*;
+import com.novanest.service.ProductImageHelper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,13 +23,16 @@ public class OrderController {
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
+    private final ProductImageHelper productImageHelper;
 
     public OrderController(OrderRepository orderRepository, OrderItemRepository orderItemRepository,
-                           CartItemRepository cartItemRepository, UserRepository userRepository) {
+                           CartItemRepository cartItemRepository, UserRepository userRepository,
+                           ProductImageHelper productImageHelper) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartItemRepository = cartItemRepository;
         this.userRepository = userRepository;
+        this.productImageHelper = productImageHelper;
     }
 
     private User getAuthenticatedUser() {
@@ -50,6 +54,11 @@ public class OrderController {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         List<OrderItem> items = orderItemRepository.findByOrder_OrderId(orderId);
+        for (OrderItem item : items) {
+            if (item.getProduct() != null) {
+                productImageHelper.populateImageUrl(item.getProduct());
+            }
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("order", order);

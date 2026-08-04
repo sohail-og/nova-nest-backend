@@ -42,6 +42,9 @@ public class Product {
     @Transient
     private Double rating = 4.5;
 
+    @Transient
+    private String imageUrl;
+
     public Product() {
     }
 
@@ -132,5 +135,13 @@ public class Product {
 
     public void setRating(Double rating) {
         this.rating = rating;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

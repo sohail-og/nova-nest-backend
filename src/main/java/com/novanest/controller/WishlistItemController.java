@@ -6,6 +6,7 @@ import com.novanest.model.WishlistItem;
 import com.novanest.repository.ProductRepository;
 import com.novanest.repository.UserRepository;
 import com.novanest.repository.WishlistItemRepository;
+import com.novanest.service.ProductImageHelper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,11 +25,14 @@ public class WishlistItemController {
     private final WishlistItemRepository wishlistItemRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final ProductImageHelper productImageHelper;
 
-    public WishlistItemController(WishlistItemRepository wishlistItemRepository, UserRepository userRepository, ProductRepository productRepository) {
+    public WishlistItemController(WishlistItemRepository wishlistItemRepository, UserRepository userRepository,
+                                  ProductRepository productRepository, ProductImageHelper productImageHelper) {
         this.wishlistItemRepository = wishlistItemRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
+        this.productImageHelper = productImageHelper;
     }
 
     private User getAuthenticatedUser() {
@@ -41,7 +45,13 @@ public class WishlistItemController {
     @GetMapping
     public ResponseEntity<List<WishlistItem>> getWishlist() {
         User user = getAuthenticatedUser();
-        return ResponseEntity.ok(wishlistItemRepository.findByUser(user));
+        List<WishlistItem> items = wishlistItemRepository.findByUser(user);
+        for (WishlistItem item : items) {
+            if (item.getProduct() != null) {
+                productImageHelper.populateImageUrl(item.getProduct());
+            }
+        }
+        return ResponseEntity.ok(items);
     }
 
     @PostMapping("/toggle")

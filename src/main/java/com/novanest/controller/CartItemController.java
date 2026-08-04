@@ -6,6 +6,7 @@ import com.novanest.model.User;
 import com.novanest.repository.CartItemRepository;
 import com.novanest.repository.ProductRepository;
 import com.novanest.repository.UserRepository;
+import com.novanest.service.ProductImageHelper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,11 +23,14 @@ public class CartItemController {
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final ProductImageHelper productImageHelper;
 
-    public CartItemController(CartItemRepository cartItemRepository, UserRepository userRepository, ProductRepository productRepository) {
+    public CartItemController(CartItemRepository cartItemRepository, UserRepository userRepository,
+                              ProductRepository productRepository, ProductImageHelper productImageHelper) {
         this.cartItemRepository = cartItemRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
+        this.productImageHelper = productImageHelper;
     }
 
     private User getAuthenticatedUser() {
@@ -39,7 +43,13 @@ public class CartItemController {
     @GetMapping
     public ResponseEntity<List<CartItem>> getCart() {
         User user = getAuthenticatedUser();
-        return ResponseEntity.ok(cartItemRepository.findByUser(user));
+        List<CartItem> cartItems = cartItemRepository.findByUser(user);
+        for (CartItem item : cartItems) {
+            if (item.getProduct() != null) {
+                productImageHelper.populateImageUrl(item.getProduct());
+            }
+        }
+        return ResponseEntity.ok(cartItems);
     }
 
     @PostMapping
@@ -66,6 +76,9 @@ public class CartItemController {
                     return cartItemRepository.save(newItem);
                 });
 
+        if (cartItem.getProduct() != null) {
+            productImageHelper.populateImageUrl(cartItem.getProduct());
+        }
         return ResponseEntity.ok(cartItem);
     }
 
@@ -80,7 +93,11 @@ public class CartItemController {
         }
 
         cartItem.setQuantity(quantity);
-        return ResponseEntity.ok(cartItemRepository.save(cartItem));
+        CartItem saved = cartItemRepository.save(cartItem);
+        if (saved.getProduct() != null) {
+            productImageHelper.populateImageUrl(saved.getProduct());
+        }
+        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
