@@ -56,20 +56,26 @@ public class SecurityConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
 		http.csrf(AbstractHttpConfigurer::disable).cors(cors -> cors.configurationSource(corsConfigurationSource()))
+				.exceptionHandling(exceptions -> exceptions
+						.authenticationEntryPoint((request, response, authException) -> {
+							response.setContentType("application/json");
+							response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+							response.getOutputStream().println("{ \"error\": \"" + authException.getMessage() + "\" }");
+						})
+				)
 				.authorizeHttpRequests(auth -> auth
 
 						// Public APIs
-						.requestMatchers("/api/auth/register").permitAll().requestMatchers("/api/auth/login")
-						.permitAll().requestMatchers("/api/auth/send-otp").permitAll()
-						.requestMatchers("/api/auth/verify-otp").permitAll().requestMatchers("/api/auth/reset-password")
-						.permitAll().requestMatchers("/api/auth/forgot-password").permitAll()
+						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						.requestMatchers("/api/auth/**").permitAll()
+						.requestMatchers("/api/admin/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/productimages/**").permitAll()
 
 						// Admin APIs
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-						// User APIs
-						.requestMatchers("/api/user/**").hasAnyRole("CUSTOMER", "ADMIN")
+						// Customer APIs
+						.requestMatchers("/api/user/**", "/api/home/**", "/api/cart/**", "/api/wishlist/**", "/api/orders/**", "/api/payment/**").hasRole("CUSTOMER")
 
 						// Any other API requires authentication
 						.anyRequest().authenticated()
@@ -87,6 +93,7 @@ public class SecurityConfig {
 		configuration.setAllowedOrigins(List.of("http://localhost:5173"));
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
+		configuration.setExposedHeaders(Arrays.asList("Content-Disposition", "Content-Type", "Content-Length"));
 		configuration.setAllowCredentials(true);
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

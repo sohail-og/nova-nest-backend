@@ -1,6 +1,7 @@
 package com.novanest.repository;
 
 import com.novanest.model.OtpToken;
+import com.novanest.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
@@ -8,11 +9,11 @@ import java.util.Optional;
 @Repository
 public interface OtpTokenRepository extends JpaRepository<OtpToken, Integer> {
 
-    Optional<OtpToken> findByEmail(String email);
+    Optional<OtpToken> findByUser(User user);
 
-    Optional<OtpToken> findByEmailAndOtp(String email, String otp);
+    Optional<OtpToken> findByUserAndOtp(User user, String otp);
 
-    Optional<OtpToken> findByEmailAndVerifiedTrue(String email);
+    Optional<OtpToken> findByUserAndVerifiedTrue(User user);
 
-    void deleteByEmail(String email);
+    void deleteByUser(User user);
 }

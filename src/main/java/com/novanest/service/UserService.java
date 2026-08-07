@@ -1,7 +1,6 @@
 package com.novanest.service;
 
 import com.novanest.dto.AuthResponse;
-
 import com.novanest.dto.LoginRequest;
 import com.novanest.dto.RegisterRequest;
 import com.novanest.dto.ChangePasswordRequest;
@@ -10,6 +9,7 @@ import com.novanest.exception.UserAlreadyExistsException;
 import com.novanest.exception.ValidationException;
 import com.novanest.model.User;
 import com.novanest.repository.UserRepository;
+import com.novanest.model.OtpToken;
 import com.novanest.security.CustomUserDetailsService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,10 +17,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.novanest.model.Role;
-import com.novanest.service.MailService;
-import com.novanest.service.OtpService;
 import com.novanest.dto.ForgotPasswordRequest;
 import com.novanest.dto.VerifyOtpRequest;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Service
 public class UserService {
@@ -64,73 +65,100 @@ public class UserService {
 		}
 	}
 
-	/**
-	 * Register new user
-	 */
-	public AuthResponse register(RegisterRequest request) {
+	private void checkUserExistsByEmail(String email) {
+		if (userRepository.findByEmail(email).isPresent()) {
+			throw new UserAlreadyExistsException("Email already exists");
+		}
+	}
 
+	private void checkUserExistsByUsername(String username) {
+		if (userRepository.findByUsername(username).isPresent()) {
+			throw new UserAlreadyExistsException("Username already exists");
+		}
+	}
+
+	private void checkUserExistsByPhone(String phone) {
+		if (userRepository.findByPhone(phone).isPresent()) {
+			throw new UserAlreadyExistsException("Phone number already exists");
+		}
+	}
+
+	@Transactional
+	public AuthResponse register(RegisterRequest request) {
+		org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserService.class);
+		log.info("Incoming RegisterRequest for email: {}", request.getEmail());
+
+		log.info("Validation started for email: {}", request.getEmail());
 		if (!request.getPassword().equals(request.getConfirmPassword())) {
 			throw new ValidationException("Passwords do not match");
 		}
 
 		validatePasswordStrength(request.getPassword());
+		log.info("Validation completed for email: {}", request.getEmail());
 
-		if (userRepository.existsByUsername(request.getUsername())) {
-			throw new UserAlreadyExistsException("Username already exists");
-		}
+		checkUserExistsByEmail(request.getEmail());
+		log.info("Verified no duplicate verified users exist for email: {}", request.getEmail());
 
-		if (userRepository.existsByEmail(request.getEmail())) {
-			throw new UserAlreadyExistsException("Email already exists");
-		}
-
-		if (userRepository.existsByPhone(request.getPhone())) {
-			throw new UserAlreadyExistsException("Phone number already exists");
-		}
-
+		log.info("Creating new User for email: {}", request.getEmail());
 		User user = new User();
 		user.setUsername(request.getUsername());
 		user.setPassword(passwordEncoder.encode(request.getPassword()));
 		user.setGender(request.getGender());
 		user.setEmail(request.getEmail());
 		user.setPhone(request.getPhone());
+		user.setFullName(request.getFullName());
 		user.setRole(Role.CUSTOMER);
+		user.setStatus("ACTIVE");
 
-		userRepository.save(user);
+		log.info("User save started for email: {}", request.getEmail());
+		user = userRepository.save(user);
+		userRepository.flush();
+		log.info("User saved with ID: {}", user.getId());
+
+		// Authenticate and generate token immediately
+		UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getEmail());
+		String token = jwtService.generateToken(userDetails);
+		jwtService.saveUserToken(token, userDetails.getUsername());
 
 		AuthResponse response = new AuthResponse();
-		response.setMessage("Registration Successful");
+		response.setMessage("Registration successful!");
 		response.setUsername(user.getUsername());
-
+		response.setToken(token);
+		
+		log.info("Registration completed successfully for email: {}", request.getEmail());
 		return response;
 	}
 
-	/**
-	 * Login user
-	 */
+
 	public AuthResponse login(LoginRequest request) {
 
 		authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+				.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
-		UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getUsername());
+		UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getEmail());
+		
+		User user = userRepository.findByEmail(userDetails.getUsername())
+				.orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User account not found"));
+
+		if (user.getRole() == Role.ADMIN) {
+			throw new org.springframework.security.authentication.DisabledException("Access denied: Administrators cannot log in through the customer portal.");
+		}
+
 		String token = jwtService.generateToken(userDetails);
 
 		jwtService.saveUserToken(token, userDetails.getUsername());
 
 		AuthResponse response = new AuthResponse();
 		response.setToken(token);
-		response.setUsername(userDetails.getUsername());
+		response.setUsername(user.getUsername());
 		response.setMessage("Login Successful");
 
 		return response;
 	}
 
-	/**
-	 * Change password for authenticated user
-	 */
-	public AuthResponse changePassword(ChangePasswordRequest request, String username) {
-		User user = userRepository.findByUsername(username)
-				.orElseThrow(() -> new ValidationException("User not found"));
+	public AuthResponse changePassword(ChangePasswordRequest request, String email) {
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found"));
 
 		if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
 			throw new ValidationException("Invalid current password");
@@ -151,14 +179,11 @@ public class UserService {
 		return response;
 	}
 
-	/**
-	 * Reset password via email verification
-	 */
 	public AuthResponse resetPassword(ResetPasswordRequest request) {
 		User user = userRepository.findByEmail(request.getEmail())
 				.orElseThrow(() -> new ValidationException("Email address does not exist"));
 
-		if (!otpService.isEmailOtpVerified(request.getEmail())) {
+		if (!otpService.isEmailOtpVerified(user)) {
 			throw new ValidationException("OTP not verified or expired for this email. Please verify OTP first.");
 		}
 
@@ -171,7 +196,7 @@ public class UserService {
 		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 		userRepository.save(user);
 
-		otpService.clearOtp(request.getEmail());
+		otpService.clearOtp(user);
 
 		AuthResponse response = new AuthResponse();
 		response.setMessage("Password reset successful");
@@ -179,17 +204,13 @@ public class UserService {
 		return response;
 	}
 
-	/**
-	 * Send OTP to registered email
-	 */
 	public AuthResponse sendOtp(ForgotPasswordRequest request) {
-
 		User user = userRepository.findByEmail(request.getEmail())
 				.orElseThrow(() -> new ValidationException("Email does not exist"));
 
-		String otp = otpService.generateOtp(request.getEmail());
+		OtpToken otpToken = otpService.generateOtp(user);
 
-		mailService.sendOtp(request.getEmail(), otp);
+		mailService.sendOtp(request.getEmail(), otpToken.getOtp());
 
 		AuthResponse response = new AuthResponse();
 		response.setMessage("OTP sent successfully to your email");
@@ -198,12 +219,11 @@ public class UserService {
 		return response;
 	}
 
-	/**
-	 * Verify OTP
-	 */
 	public AuthResponse verifyOtp(VerifyOtpRequest request) {
+		User user = userRepository.findByEmail(request.getEmail())
+			.orElseThrow(() -> new ValidationException("Email does not exist"));
 
-		boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp());
+		boolean valid = otpService.verifyOtp(user, request.getOtp());
 
 		if (!valid) {
 			throw new ValidationException("Invalid or Expired OTP");
@@ -215,10 +235,8 @@ public class UserService {
 		return response;
 	}
 
-	/**
-	 * Logout user
-	 */
 	public void logout(String token) {
 		jwtService.revokeToken(token);
 	}
+
 }

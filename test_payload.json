@@ -1,0 +1,17 @@
+{
+  "fullName": "Test User",
+  "username": "testuser123",
+  "email": "test1234@test.com",
+  "phone": "1234567890",
+  "gender": "Male",
+  "password": "Password1!",
+  "confirmPassword": "Password1!",
+  "houseNo": "123",
+  "street": "Main",
+  "area": "Center",
+  "city": "City",
+  "district": "Dist",
+  "state": "State",
+  "country": "Country",
+  "pincode": "123456"
+}

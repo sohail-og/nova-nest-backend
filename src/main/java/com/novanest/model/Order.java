@@ -108,4 +108,114 @@ public class Order {
     public void setPaymentStatus(String paymentStatus) {
         this.paymentStatus = paymentStatus;
     }
+
+    @Column(name = "shipping_full_name", length = 100)
+    private String shippingFullName;
+
+    @Column(name = "shipping_phone", length = 15)
+    private String shippingPhone;
+
+    @Column(name = "shipping_house_no", length = 100)
+    private String shippingHouseNo;
+
+    @Column(name = "shipping_street", length = 100)
+    private String shippingStreet;
+
+    @Column(name = "shipping_area", length = 100)
+    private String shippingArea;
+
+    @Column(name = "shipping_city", length = 100)
+    private String shippingCity;
+
+    @Column(name = "shipping_district", length = 100)
+    private String shippingDistrict;
+
+    @Column(name = "shipping_state", length = 100)
+    private String shippingState;
+
+    @Column(name = "shipping_country", length = 100)
+    private String shippingCountry;
+
+    @Column(name = "shipping_pincode", length = 50)
+    private String shippingPincode;
+
+    public String getShippingFullName() {
+        return shippingFullName;
+    }
+
+    public void setShippingFullName(String shippingFullName) {
+        this.shippingFullName = shippingFullName;
+    }
+
+    public String getShippingPhone() {
+        return shippingPhone;
+    }
+
+    public void setShippingPhone(String shippingPhone) {
+        this.shippingPhone = shippingPhone;
+    }
+
+    public String getShippingHouseNo() {
+        return shippingHouseNo;
+    }
+
+    public void setShippingHouseNo(String shippingHouseNo) {
+        this.shippingHouseNo = shippingHouseNo;
+    }
+
+    public String getShippingStreet() {
+        return shippingStreet;
+    }
+
+    public void setShippingStreet(String shippingStreet) {
+        this.shippingStreet = shippingStreet;
+    }
+
+    public String getShippingArea() {
+        return shippingArea;
+    }
+
+    public void setShippingArea(String shippingArea) {
+        this.shippingArea = shippingArea;
+    }
+
+    public String getShippingCity() {
+        return shippingCity;
+    }
+
+    public void setShippingCity(String shippingCity) {
+        this.shippingCity = shippingCity;
+    }
+
+    public String getShippingDistrict() {
+        return shippingDistrict;
+    }
+
+    public void setShippingDistrict(String shippingDistrict) {
+        this.shippingDistrict = shippingDistrict;
+    }
+
+    public String getShippingState() {
+        return shippingState;
+    }
+
+    public void setShippingState(String shippingState) {
+        this.shippingState = shippingState;
+    }
+
+    public String getShippingCountry() {
+        return shippingCountry;
+    }
+
+    public void setShippingCountry(String shippingCountry) {
+        this.shippingCountry = shippingCountry;
+    }
+
+    public String getShippingPincode() {
+        return shippingPincode;
+    }
+
+    public void setShippingPincode(String shippingPincode) {
+        this.shippingPincode = shippingPincode;
+    }
 }

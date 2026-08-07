@@ -1,6 +1,7 @@
 package com.novanest.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -30,20 +31,44 @@ public class User {
 	@Column(nullable = false)
 	private Role role;
 
+	@Column(length = 50)
+	private String status = "ACTIVE";
+
+	@Column(name = "profile_image", length = 512)
+	private String profileImage;
+
+	@Column(name = "full_name", length = 100)
+	private String fullName;
+
+
+	// New Address Fields
+	@Column(name = "house_no", length = 100)
+	private String houseNo;
+
+	@Column(length = 100)
+	private String street;
+
+	@Column(length = 100)
+	private String area;
+
+	@Column(length = 100)
+	private String city;
+
+	@Column(length = 100)
+	private String district;
+
+	@Column(length = 100)
+	private String state;
+
+	@Column(length = 100)
+	private String country;
+
+	@Column(length = 50)
+	private String pincode;
+
+
 	// Default Constructor
 	public User() {
-	}
-
-	// Parameterized Constructor
-	public User(Integer id, String username, String password, String gender, String email, String phone, Role role) {
-
-		this.id = id;
-		this.username = username;
-		this.password = password;
-		this.gender = gender;
-		this.email = email;
-		this.phone = phone;
-		this.role = role;
 	}
 
 	// Getters
@@ -75,6 +100,52 @@ public class User {
 		return role;
 	}
 
+	public String getStatus() {
+		return status;
+	}
+
+	public String getProfileImage() {
+		return profileImage;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+
+	public String getHouseNo() {
+		return houseNo;
+	}
+
+	public String getStreet() {
+		return street;
+	}
+
+	public String getArea() {
+		return area;
+	}
+
+	public String getCity() {
+		return city;
+	}
+
+	public String getDistrict() {
+		return district;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public String getCountry() {
+		return country;
+	}
+
+	public String getPincode() {
+		return pincode;
+	}
+
+
 	// Setters
 	public void setId(Integer id) {
 		this.id = id;
@@ -103,4 +174,50 @@ public class User {
 	public void setRole(Role role) {
 		this.role = role;
 	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public void setProfileImage(String profileImage) {
+		this.profileImage = profileImage;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+
+	public void setHouseNo(String houseNo) {
+		this.houseNo = houseNo;
+	}
+
+	public void setStreet(String street) {
+		this.street = street;
+	}
+
+	public void setArea(String area) {
+		this.area = area;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
+	}
+
+	public void setDistrict(String district) {
+		this.district = district;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+
+	public void setPincode(String pincode) {
+		this.pincode = pincode;
+	}
+
 }

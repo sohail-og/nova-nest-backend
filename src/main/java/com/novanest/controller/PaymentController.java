@@ -1,8 +1,8 @@
 package com.novanest.controller;
 
 import com.novanest.model.*;
-
 import com.novanest.repository.*;
+import com.novanest.dto.*;
 import com.razorpay.RazorpayClient;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -24,6 +26,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/payment")
 public class PaymentController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PaymentController.class);
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -50,8 +54,23 @@ public class PaymentController {
     private User getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
-        return userRepository.findByUsername(username)
+        return userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private void validateAddress(AddressDto address) {
+        if (address == null) throw new IllegalArgumentException("Address cannot be null");
+        if (address.getFullName() == null || address.getFullName().trim().isEmpty()) throw new IllegalArgumentException("fullName is missing");
+        if (address.getPhone() == null || address.getPhone().trim().isEmpty()) throw new IllegalArgumentException("phone is missing");
+        if (address.getEmail() == null || address.getEmail().trim().isEmpty()) throw new IllegalArgumentException("email is missing");
+        if (address.getHouseNo() == null || address.getHouseNo().trim().isEmpty()) throw new IllegalArgumentException("houseNo is missing");
+        if (address.getStreet() == null || address.getStreet().trim().isEmpty()) throw new IllegalArgumentException("street is missing");
+        if (address.getArea() == null || address.getArea().trim().isEmpty()) throw new IllegalArgumentException("area is missing");
+        if (address.getCity() == null || address.getCity().trim().isEmpty()) throw new IllegalArgumentException("city is missing");
+        if (address.getDistrict() == null || address.getDistrict().trim().isEmpty()) throw new IllegalArgumentException("district is missing");
+        if (address.getState() == null || address.getState().trim().isEmpty()) throw new IllegalArgumentException("state is missing");
+        if (address.getCountry() == null || address.getCountry().trim().isEmpty()) throw new IllegalArgumentException("country is missing");
+        if (address.getPincode() == null || address.getPincode().trim().isEmpty()) throw new IllegalArgumentException("pincode is missing");
     }
 
     @PostMapping("/create-order")
@@ -102,11 +121,11 @@ public class PaymentController {
 
     @PostMapping("/verify")
     @Transactional
-    public ResponseEntity<?> verifyPayment(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> verifyPayment(@RequestBody VerifyPaymentRequest payload) {
         try {
-            String razorpayOrderId = payload.get("razorpayOrderId");
-            String razorpayPaymentId = payload.get("razorpayPaymentId");
-            String razorpaySignature = payload.get("razorpaySignature");
+            String razorpayOrderId = payload.getRazorpayOrderId();
+            String razorpayPaymentId = payload.getRazorpayPaymentId();
+            String razorpaySignature = payload.getRazorpaySignature();
 
             if (razorpayOrderId == null || razorpayPaymentId == null || razorpaySignature == null) {
                 Map<String, String> response = new HashMap<>();
@@ -135,8 +154,18 @@ public class PaymentController {
                 return ResponseEntity.badRequest().body(response);
             }
 
+            // Validate the address BEFORE creating the order
+            try {
+                validateAddress(payload.getAddress());
+            } catch (IllegalArgumentException ex) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Please provide a valid delivery address: " + ex.getMessage());
+                return ResponseEntity.badRequest().body(response);
+            }
+
             // Signature verified successfully
             User user = getAuthenticatedUser();
+            
             List<CartItem> cartItems = cartItemRepository.findByUser(user);
             if (cartItems.isEmpty()) {
                 Map<String, String> response = new HashMap<>();
@@ -156,7 +185,30 @@ public class PaymentController {
             Order order = new Order(razorpayOrderId, user, grandTotal, OrderStatus.SUCCESS);
             order.setPaymentMethod("RAZORPAY");
             order.setPaymentStatus("PAID");
+
+            // Save and associate shipping address
+            if (payload.getAddress() != null) {
+                AddressDto addr = payload.getAddress();
+                order.setShippingFullName(addr.getFullName());
+                order.setShippingPhone(addr.getPhone());
+                order.setShippingHouseNo(addr.getHouseNo());
+                order.setShippingStreet(addr.getStreet());
+                order.setShippingArea(addr.getArea());
+                order.setShippingCity(addr.getCity());
+                order.setShippingDistrict(addr.getDistrict());
+                order.setShippingState(addr.getState());
+                order.setShippingCountry(addr.getCountry());
+                order.setShippingPincode(addr.getPincode());
+                logger.info("Selected Address: {} {}, {}, {}, {}, {}, {}, {}, {}", 
+                    addr.getFullName(), addr.getPhone(), addr.getHouseNo(), addr.getStreet(), 
+                    addr.getArea(), addr.getCity(), addr.getState(), addr.getCountry(), addr.getPincode());
+                logger.info("Address validation result: SUCCESS");
+            } else {
+                logger.warn("Address validation result: FAILED - Missing address");
+            }
+
             Order savedOrder = orderRepository.save(order);
+            logger.info("Order ID: {}", savedOrder.getOrderId());
 
             // Save Order Items
             for (CartItem item : cartItems) {
@@ -204,8 +256,17 @@ public class PaymentController {
 
     @PostMapping("/cod")
     @Transactional
-    public ResponseEntity<?> createCodOrder() {
+    public ResponseEntity<?> createCodOrder(@RequestBody CodPaymentRequest payload) {
         try {
+            AddressDto shippingAddress = payload.getAddress();
+            try {
+                validateAddress(shippingAddress);
+            } catch (IllegalArgumentException ex) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Please provide a valid delivery address: " + ex.getMessage());
+                return ResponseEntity.badRequest().body(response);
+            }
+
             User user = getAuthenticatedUser();
             List<CartItem> cartItems = cartItemRepository.findByUser(user);
             if (cartItems.isEmpty()) {
@@ -227,7 +288,29 @@ public class PaymentController {
             Order order = new Order(orderId, user, grandTotal, OrderStatus.PENDING);
             order.setPaymentMethod("COD");
             order.setPaymentStatus("PENDING");
+
+            // Save and associate shipping address
+            if (shippingAddress != null) {
+                order.setShippingFullName(shippingAddress.getFullName());
+                order.setShippingPhone(shippingAddress.getPhone());
+                order.setShippingHouseNo(shippingAddress.getHouseNo());
+                order.setShippingStreet(shippingAddress.getStreet());
+                order.setShippingArea(shippingAddress.getArea());
+                order.setShippingCity(shippingAddress.getCity());
+                order.setShippingDistrict(shippingAddress.getDistrict());
+                order.setShippingState(shippingAddress.getState());
+                order.setShippingCountry(shippingAddress.getCountry());
+                order.setShippingPincode(shippingAddress.getPincode());
+                logger.info("Selected Address: {} {}, {}, {}, {}, {}, {}, {}, {}", 
+                    shippingAddress.getFullName(), shippingAddress.getPhone(), shippingAddress.getHouseNo(), shippingAddress.getStreet(), 
+                    shippingAddress.getArea(), shippingAddress.getCity(), shippingAddress.getState(), shippingAddress.getCountry(), shippingAddress.getPincode());
+                logger.info("Address validation result: SUCCESS");
+            } else {
+                logger.warn("Address validation result: FAILED - Missing address");
+            }
+
             Order savedOrder = orderRepository.save(order);
+            logger.info("Order ID: {}", savedOrder.getOrderId());
 
             // Save Order Items
             for (CartItem item : cartItems) {

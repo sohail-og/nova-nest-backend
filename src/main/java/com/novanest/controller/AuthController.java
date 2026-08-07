@@ -15,21 +15,29 @@ import java.security.Principal;
 public class AuthController {
 
 	private final UserService userService;
+	private final com.novanest.service.JwtService jwtService;
 
-	public AuthController(UserService userService) {
+	public AuthController(UserService userService, com.novanest.service.JwtService jwtService) {
 		this.userService = userService;
+		this.jwtService = jwtService;
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-		AuthResponse response = userService.register(request);
-		return ResponseEntity.ok(response);
+	public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request, jakarta.servlet.http.HttpServletResponse response) {
+		AuthResponse authResponse = userService.register(request);
+		if (authResponse.getToken() != null) {
+			org.springframework.http.ResponseCookie cookie = jwtService.createJwtCookie(authResponse.getToken());
+			response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString());
+		}
+		return ResponseEntity.ok(authResponse);
 	}
 
 	@PostMapping("/login")
-	public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-		AuthResponse response = userService.login(request);
-		return ResponseEntity.ok(response);
+	public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, jakarta.servlet.http.HttpServletResponse response) {
+		AuthResponse authResponse = userService.login(request);
+		org.springframework.http.ResponseCookie cookie = jwtService.createJwtCookie(authResponse.getToken());
+		response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString());
+		return ResponseEntity.ok(authResponse);
 	}
 
 	@PostMapping("/send-otp")
@@ -42,21 +50,33 @@ public class AuthController {
 
 	@PostMapping("/verify-otp")
 	public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-
 		AuthResponse response = userService.verifyOtp(request);
-
 		return ResponseEntity.ok(response);
 	}
 
 	@PostMapping("/logout")
-	public ResponseEntity<AuthResponse> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+	public ResponseEntity<AuthResponse> logout(
+			@RequestHeader(value = "Authorization", required = false) String authHeader,
+			@CookieValue(value = "jwt", required = false) String jwtCookie,
+			jakarta.servlet.http.HttpServletResponse response) {
+		
+		String token = null;
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
-			String token = authHeader.substring(7);
+			token = authHeader.substring(7);
+		} else if (jwtCookie != null) {
+			token = jwtCookie;
+		}
+
+		if (token != null) {
 			userService.logout(token);
 		}
-		AuthResponse response = new AuthResponse();
-		response.setMessage("Logged out successfully");
-		return ResponseEntity.ok(response);
+
+		org.springframework.http.ResponseCookie cookie = jwtService.createCleanJwtCookie();
+		response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString());
+
+		AuthResponse authResponse = new AuthResponse();
+		authResponse.setMessage("Logged out successfully");
+		return ResponseEntity.ok(authResponse);
 	}
 
 	@PutMapping("/change-password")

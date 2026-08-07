@@ -5,6 +5,7 @@ public class AuthResponse {
     private String token;
     private String username;
     private String message;
+    private boolean success = true; // Default to true
 
     public AuthResponse() {
     }
@@ -37,5 +38,13 @@ public class AuthResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
     }
 }

@@ -35,6 +35,8 @@ public class Product {
     @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
+
+
     // Transient fields for frontend compatibilities (not stored in DB schema)
     @Transient
     private BigDecimal discount = BigDecimal.ZERO;
@@ -56,6 +58,8 @@ public class Product {
         this.stock = stock;
         this.category = category;
     }
+
+
 
     public Integer getId() {
         return id;
@@ -120,6 +124,8 @@ public class Product {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+
 
     public BigDecimal getDiscount() {
         return discount;

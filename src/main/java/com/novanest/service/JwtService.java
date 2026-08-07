@@ -104,7 +104,7 @@ public class JwtService {
 
     @Transactional
     public void saveUserToken(String token, String username) {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
         
         Date expiration = extractExpiration(token);
@@ -123,6 +123,26 @@ public class JwtService {
     @Transactional
     public void revokeToken(String token) {
         jwtTokenRepository.findByToken(token).ifPresent(jwtTokenRepository::delete);
+    }
+
+    public org.springframework.http.ResponseCookie createJwtCookie(String token) {
+        return org.springframework.http.ResponseCookie.from("jwt", token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(jwtExpiration / 1000)
+                .sameSite("Lax")
+                .build();
+    }
+
+    public org.springframework.http.ResponseCookie createCleanJwtCookie() {
+        return org.springframework.http.ResponseCookie.from("jwt", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
     }
 
 }

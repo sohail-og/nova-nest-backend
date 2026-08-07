@@ -29,17 +29,10 @@ public class RegisterRequest {
     @Pattern(regexp = "^[0-9]{10}$", message = "Phone number must contain exactly 10 digits")
     private String phone;
 
-    public RegisterRequest() {
-    }
+    @NotBlank(message = "Full Name is required")
+    private String fullName;
 
-    public RegisterRequest(String username, String password, String confirmPassword,
-                           String gender, String email, String phone) {
-        this.username = username;
-        this.password = password;
-        this.confirmPassword = confirmPassword;
-        this.gender = gender;
-        this.email = email;
-        this.phone = phone;
+    public RegisterRequest() {
     }
 
     public String getUsername() {
@@ -88,5 +81,13 @@ public class RegisterRequest {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 }

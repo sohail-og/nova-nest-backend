@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -51,9 +52,18 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException ex) {
 
 		Map<String, String> error = new HashMap<>();
-		error.put("error", "Invalid username or password");
+		error.put("error", "Invalid email or password");
 
 		return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+	}
+
+	@ExceptionHandler(DisabledException.class)
+	public ResponseEntity<Map<String, String>> handleDisabledException(DisabledException ex) {
+
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Account is disabled");
+
+		return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
 	}
 
 	@ExceptionHandler(UsernameNotFoundException.class)
@@ -63,6 +73,15 @@ public class GlobalExceptionHandler {
 		error.put("error", "User not found");
 
 		return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+	}
+
+	@ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+	public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Data integrity violation: Check if email/username already exists or input is too long.");
+
+		return new ResponseEntity<>(error, HttpStatus.CONFLICT);
 	}
 
 	@ExceptionHandler(Exception.class)
