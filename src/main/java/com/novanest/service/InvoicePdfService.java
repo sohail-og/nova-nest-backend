@@ -36,6 +36,9 @@ public class InvoicePdfService {
     private static final Color DARK = new Color(18, 18, 20); // #121214
     private static final Color BORDER_GREY = new Color(226, 226, 228);
 
+    @org.springframework.beans.factory.annotation.Value("${backend.url:http://localhost:8080}")
+    private String backendUrl;
+
     public byte[] generateInvoicePdf(Order order, List<OrderItem> items) {
         long startTime = System.currentTimeMillis();
         String customerName = order.getShippingFullName() != null ? order.getShippingFullName() : (order.getUser() != null ? order.getUser().getUsername() : "N/A");
@@ -258,7 +261,7 @@ public class InvoicePdfService {
                     try {
                         String imgUrl = item.getProduct().getImageUrl();
                         if (imgUrl.startsWith("/uploads/")) {
-                            imgUrl = "http://localhost:8080" + imgUrl;
+                            imgUrl = backendUrl + imgUrl;
                         }
                         log.info("[PDF GENERATION] Loading image for product: {}, URL: {}", item.getProduct().getName(), imgUrl);
                         URL url = new URL(imgUrl);
