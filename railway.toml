@@ -1,0 +1,5 @@
+[build]
+builder = "NIXPACKS"
+
+[env]
+SPRING_PROFILES_ACTIVE = "prod"
