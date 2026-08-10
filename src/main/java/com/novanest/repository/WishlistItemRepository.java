@@ -10,8 +10,6 @@ import java.util.Optional;
 @Repository
 public interface WishlistItemRepository extends JpaRepository<WishlistItem, Integer> {
     List<WishlistItem> findByUser(User user);
-
     Optional<WishlistItem> findByUserAndProduct_Id(User user, Integer productId);
-
     void deleteByUser(User user);
 }

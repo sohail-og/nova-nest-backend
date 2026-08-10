@@ -29,6 +29,9 @@ public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthFilter;
 	private final CustomUserDetailsService userDetailsService;
 
+	@org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:http://localhost:5173}")
+	private String frontendUrl;
+
 	public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, CustomUserDetailsService userDetailsService) {
 		this.jwtAuthFilter = jwtAuthFilter;
 		this.userDetailsService = userDetailsService;
@@ -69,7 +72,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/api/auth/**").permitAll()
 						.requestMatchers("/api/admin/login").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/productimages/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/productimages/**", "/api/health").permitAll()
 
 						// Admin APIs
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -90,7 +93,7 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+		configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", frontendUrl));
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
 		configuration.setExposedHeaders(Arrays.asList("Content-Disposition", "Content-Type", "Content-Length"));
