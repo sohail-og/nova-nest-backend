@@ -70,7 +70,7 @@ public class SecurityConfig {
 
 						// Public APIs
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-						.requestMatchers("/api/auth/**").permitAll()
+						.requestMatchers("/api/auth/**", "/api/diagnostic/**").permitAll()
 						.requestMatchers("/api/admin/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/productimages/**", "/api/health").permitAll()
 
