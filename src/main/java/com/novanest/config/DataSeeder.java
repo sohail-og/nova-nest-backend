@@ -1,76 +1,98 @@
 package com.novanest.config;
 
-import com.novanest.repository.ProductRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
-
-    private final ProductRepository productRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    public DataSeeder(ProductRepository productRepository, JdbcTemplate jdbcTemplate) {
-        this.productRepository = productRepository;
+    public DataSeeder(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     public void run(String... args) throws Exception {
-        if (productRepository.count() == 0) {
-            log.info("Products table is empty. Executing seed.sql to populate initial data...");
-            try (InputStream is = getClass().getResourceAsStream("/seed.sql")) {
+        Integer productCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM products", Integer.class);
+        
+        if (productCount == null || productCount == 0) {
+            log.info("Products table is empty. Executing seed.json to populate initial data...");
+            try (InputStream is = getClass().getResourceAsStream("/seed.json")) {
                 if (is != null) {
-                    String sql = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    String[] statements = sql.split(";");
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode root = mapper.readTree(is);
                     
                     int catCount = 0;
                     int prodCount = 0;
                     int imgCount = 0;
                     
-                    for (String statement : statements) {
-                        String trimmed = statement.trim();
-                        if (!trimmed.isEmpty()) {
+                    if (root.has("categories")) {
+                        for (JsonNode cat : root.get("categories")) {
                             try {
-                                // If statement is an INSERT INTO, we can also modify it to INSERT IGNORE INTO
-                                // to avoid duplicate key exceptions completely in MySQL.
-                                if (trimmed.toUpperCase().startsWith("INSERT INTO")) {
-                                    trimmed = trimmed.replaceFirst("(?i)INSERT INTO", "INSERT IGNORE INTO");
-                                }
-                                
-                                int rowsAffected = jdbcTemplate.update(trimmed);
-                                
-                                if (rowsAffected > 0) {
-                                    if (trimmed.toUpperCase().contains("INTO CATEGORIES")) {
-                                        catCount++;
-                                    } else if (trimmed.toUpperCase().contains("INTO PRODUCTS")) {
-                                        prodCount++;
-                                    } else if (trimmed.toUpperCase().contains("INTO PRODUCTIMAGES")) {
-                                        imgCount++;
-                                    }
-                                }
+                                int rows = jdbcTemplate.update("INSERT IGNORE INTO categories (category_id, category_name, category_image, description) VALUES (?, ?, ?, ?)",
+                                        cat.get("id").asInt(),
+                                        cat.get("categoryName").asText(),
+                                        cat.hasNonNull("categoryImage") ? cat.get("categoryImage").asText() : null,
+                                        cat.hasNonNull("description") ? cat.get("description").asText() : null
+                                );
+                                if (rows > 0) catCount++;
                             } catch (Exception e) {
-                                log.warn("Skipping statement due to error: {} - {}", trimmed, e.getMessage());
+                                log.warn("Error inserting category {}: {}", cat.get("id").asInt(), e.getMessage());
                             }
                         }
                     }
-                    log.info("Successfully executed seed.sql. Inserted {} categories, {} products, {} images.", catCount, prodCount, imgCount);
+                    
+                    if (root.has("products")) {
+                        for (JsonNode prod : root.get("products")) {
+                            try {
+                                int rows = jdbcTemplate.update("INSERT IGNORE INTO products (product_id, name, description, price, stock, category_id) VALUES (?, ?, ?, ?, ?, ?)",
+                                        prod.get("id").asInt(),
+                                        prod.get("name").asText(),
+                                        prod.hasNonNull("description") ? prod.get("description").asText() : null,
+                                        new BigDecimal(prod.get("price").asText()),
+                                        prod.get("stock").asInt(),
+                                        prod.get("categoryId").asInt()
+                                );
+                                if (rows > 0) prodCount++;
+                            } catch (Exception e) {
+                                log.warn("Error inserting product {}: {}", prod.get("id").asInt(), e.getMessage());
+                            }
+                        }
+                    }
+                    
+                    if (root.has("images")) {
+                        for (JsonNode img : root.get("images")) {
+                            try {
+                                int rows = jdbcTemplate.update("INSERT IGNORE INTO productimages (image_id, product_id, image_url) VALUES (?, ?, ?)",
+                                        img.get("id").asInt(),
+                                        img.get("productId").asInt(),
+                                        img.get("imageUrl").asText()
+                                );
+                                if (rows > 0) imgCount++;
+                            } catch (Exception e) {
+                                log.warn("Error inserting image {}: {}", img.get("id").asInt(), e.getMessage());
+                            }
+                        }
+                    }
+                    
+                    log.info("Successfully executed seed.json. Inserted {} categories, {} products, {} images.", catCount, prodCount, imgCount);
                 } else {
-                    log.warn("seed.sql not found in classpath!");
+                    log.warn("seed.json not found in classpath!");
                 }
             } catch (Exception e) {
-                log.error("Failed to read seed.sql", e);
+                log.error("Failed to read seed.json", e);
             }
         } else {
-            log.info("Products table is already populated (count: {}). Skipping seed.sql.", productRepository.count());
+            log.info("Products table is already populated (count: {}). Skipping seed.json.", productCount);
         }
     }
 }
