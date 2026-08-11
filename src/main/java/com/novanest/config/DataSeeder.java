@@ -31,19 +31,43 @@ public class DataSeeder implements CommandLineRunner {
                 if (is != null) {
                     String sql = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                     String[] statements = sql.split(";");
-                    int count = 0;
+                    
+                    int catCount = 0;
+                    int prodCount = 0;
+                    int imgCount = 0;
+                    
                     for (String statement : statements) {
-                        if (!statement.trim().isEmpty()) {
-                            jdbcTemplate.execute(statement.trim());
-                            count++;
+                        String trimmed = statement.trim();
+                        if (!trimmed.isEmpty()) {
+                            try {
+                                // If statement is an INSERT INTO, we can also modify it to INSERT IGNORE INTO
+                                // to avoid duplicate key exceptions completely in MySQL.
+                                if (trimmed.toUpperCase().startsWith("INSERT INTO")) {
+                                    trimmed = trimmed.replaceFirst("(?i)INSERT INTO", "INSERT IGNORE INTO");
+                                }
+                                
+                                int rowsAffected = jdbcTemplate.update(trimmed);
+                                
+                                if (rowsAffected > 0) {
+                                    if (trimmed.toUpperCase().contains("INTO CATEGORIES")) {
+                                        catCount++;
+                                    } else if (trimmed.toUpperCase().contains("INTO PRODUCTS")) {
+                                        prodCount++;
+                                    } else if (trimmed.toUpperCase().contains("INTO PRODUCTIMAGES")) {
+                                        imgCount++;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                log.warn("Skipping statement due to error: {} - {}", trimmed, e.getMessage());
+                            }
                         }
                     }
-                    log.info("Successfully executed {} statements from seed.sql.", count);
+                    log.info("Successfully executed seed.sql. Inserted {} categories, {} products, {} images.", catCount, prodCount, imgCount);
                 } else {
                     log.warn("seed.sql not found in classpath!");
                 }
             } catch (Exception e) {
-                log.error("Failed to execute seed.sql", e);
+                log.error("Failed to read seed.sql", e);
             }
         } else {
             log.info("Products table is already populated (count: {}). Skipping seed.sql.", productRepository.count());
