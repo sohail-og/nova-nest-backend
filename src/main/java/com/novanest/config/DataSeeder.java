@@ -15,6 +15,8 @@ public class DataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private final JdbcTemplate jdbcTemplate;
+    
+    public static String lastError = "None";
 
     public DataSeeder(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -38,7 +40,7 @@ public class DataSeeder implements CommandLineRunner {
                     if (root.has("categories")) {
                         for (JsonNode cat : root.get("categories")) {
                             try {
-                                int rows = jdbcTemplate.update("INSERT IGNORE INTO categories (category_id, category_name, category_image, description) VALUES (?, ?, ?, ?)",
+                                int rows = jdbcTemplate.update("INSERT IGNORE INTO categories (category_id, category_name, category_image, description, display_order, visibility) VALUES (?, ?, ?, ?, 0, 1)",
                                         cat.get("id").asInt(),
                                         cat.get("categoryName").asText(),
                                         cat.hasNonNull("categoryImage") ? cat.get("categoryImage").asText() : null,
@@ -47,6 +49,7 @@ public class DataSeeder implements CommandLineRunner {
                                 if (rows > 0) catCount++;
                             } catch (Exception e) {
                                 log.warn("Error inserting category {}: {}", cat.get("id").asInt(), e.getMessage());
+                                lastError = "Category error: " + e.getMessage();
                             }
                         }
                     }
@@ -54,7 +57,7 @@ public class DataSeeder implements CommandLineRunner {
                     if (root.has("products")) {
                         for (JsonNode prod : root.get("products")) {
                             try {
-                                int rows = jdbcTemplate.update("INSERT IGNORE INTO products (product_id, name, description, price, stock, category_id) VALUES (?, ?, ?, ?, ?, ?)",
+                                int rows = jdbcTemplate.update("INSERT IGNORE INTO products (product_id, name, description, price, stock, category_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
                                         prod.get("id").asInt(),
                                         prod.get("name").asText(),
                                         prod.hasNonNull("description") ? prod.get("description").asText() : null,
@@ -65,6 +68,7 @@ public class DataSeeder implements CommandLineRunner {
                                 if (rows > 0) prodCount++;
                             } catch (Exception e) {
                                 log.warn("Error inserting product {}: {}", prod.get("id").asInt(), e.getMessage());
+                                lastError = "Product error: " + e.getMessage();
                             }
                         }
                     }
@@ -80,16 +84,22 @@ public class DataSeeder implements CommandLineRunner {
                                 if (rows > 0) imgCount++;
                             } catch (Exception e) {
                                 log.warn("Error inserting image {}: {}", img.get("id").asInt(), e.getMessage());
+                                lastError = "Image error: " + e.getMessage();
                             }
                         }
                     }
                     
                     log.info("Successfully executed seed.json. Inserted {} categories, {} products, {} images.", catCount, prodCount, imgCount);
+                    if (catCount == 0 && prodCount == 0) {
+                        lastError = "Parsed JSON but 0 rows inserted! Maybe they already exist but IDs differ?";
+                    }
                 } else {
                     log.warn("seed.json not found in classpath!");
+                    lastError = "seed.json not found!";
                 }
             } catch (Exception e) {
                 log.error("Failed to read seed.json", e);
+                lastError = "Failed to read seed.json: " + e.getMessage();
             }
         } else {
             log.info("Products table is already populated (count: {}). Skipping seed.json.", productCount);
