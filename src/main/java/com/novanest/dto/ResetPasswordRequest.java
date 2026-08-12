@@ -9,9 +9,6 @@ public class ResetPasswordRequest {
     @Email(message = "Invalid email format")
     private String email;
 
-    @NotBlank(message = "Token is required")
-    private String token;
-
     @NotBlank(message = "New password is required")
     private String newPassword;
 
@@ -33,14 +30,6 @@ public class ResetPasswordRequest {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
     }
 
     public String getNewPassword() {

@@ -1,57 +1,64 @@
 package com.novanest.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
 @Service
 public class MailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Value("${RESEND_API_KEY:}")
+    private String resendApiKey;
 
-    public void sendOtp(String toEmail, String otp) {
-
-        SimpleMailMessage message = new SimpleMailMessage();
-
-        message.setTo(toEmail);
-        message.setSubject("Nova Nest Password Reset OTP");
-
-        message.setText(
-                "Dear User,\n\n"
-                        + "Your OTP for password reset is: "
-                        + otp
-                        + "\n\nThis OTP is valid for 5 minutes."
-                        + "\n\nRegards,\nNova Nest Team");
-
-        mailSender.send(message);
-    }
-
-    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:http://localhost:5173}")
-    private String frontendUrl;
+    @Value("${MAIL_FROM:}")
+    private String mailFrom;
 
     @org.springframework.scheduling.annotation.Async
-    public void sendResetLink(String toEmail, String token) {
+    public void sendOtp(String toEmail, String otp) {
+        if (resendApiKey == null || resendApiKey.isEmpty() || mailFrom == null || mailFrom.isEmpty()) {
+            System.err.println("RESEND_API_KEY or MAIL_FROM is not configured. Email not sent.");
+            return;
+        }
+
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(toEmail);
-            message.setSubject("Nova Nest Password Reset Link");
+            String subject = "Nova Nest Password Reset OTP";
+            String htmlContent = "<p>Dear User,</p><p>Your Nova Nest password reset OTP is: <strong>" + otp + "</strong></p><p>This OTP is valid for 5 minutes.</p><p>Regards,<br/>Nova Nest Team</p>";
 
-            String resetLink = frontendUrl + "/reset-password?token=" + token + "&email=" + toEmail;
+            // Escape JSON manually to avoid depending on specific JSON libraries if possible, or use a simple string replace
+            String jsonPayload = String.format(
+                    "{\"from\":\"%s\",\"to\":[\"%s\"],\"subject\":\"%s\",\"html\":\"%s\"}",
+                    mailFrom, toEmail, subject, htmlContent.replace("\"", "\\\"")
+            );
 
-            message.setText(
-                    "Dear User,\n\n"
-                            + "Please click the following link to reset your password:\n"
-                            + resetLink
-                            + "\n\nThis link is valid for 1 hour."
-                            + "\n\nRegards,\nNova Nest Team");
+            HttpClient client = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_2)
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
 
-            mailSender.send(message);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                System.out.println("OTP email sent successfully to " + toEmail);
+            } else {
+                System.err.println("Failed to send OTP email via Resend API. Status code: " + response.statusCode());
+                System.err.println("Response body: " + response.body());
+            }
+
         } catch (Exception e) {
-            System.err.println("Failed to send email to " + toEmail + ": " + e.getMessage());
+            System.err.println("Exception while sending OTP email to " + toEmail + ": " + e.getMessage());
         }
     }
-
-
-}
+}

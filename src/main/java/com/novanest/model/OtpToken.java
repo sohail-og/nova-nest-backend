@@ -20,7 +20,7 @@ public class OtpToken {
     @Column(nullable = false, length = 100)
     private String email;
 
-    @Column(nullable = false, length = 6)
+    @Column(nullable = false)
     private String otp;
 
     @Column(name = "expiry_time")
