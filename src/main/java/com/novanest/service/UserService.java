@@ -183,26 +183,24 @@ public class UserService {
 
 	@Transactional
 	public AuthResponse sendResetLink(ForgotPasswordRequest request) {
-		User user = userRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new ValidationException("Email does not exist"));
+		Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
-		passwordResetTokenRepository.deleteByUser(user); // Clear old tokens
-		passwordResetTokenRepository.flush();
+		if (userOpt.isPresent()) {
+			User user = userOpt.get();
+			passwordResetTokenRepository.deleteByUser(user); // Clear old tokens
+			passwordResetTokenRepository.flush();
 
-		String token = java.util.UUID.randomUUID().toString();
-		com.novanest.model.PasswordResetToken resetToken = new com.novanest.model.PasswordResetToken(
-				token, user, LocalDateTime.now().plusHours(1)
-		);
-		passwordResetTokenRepository.save(resetToken);
+			String token = java.util.UUID.randomUUID().toString();
+			com.novanest.model.PasswordResetToken resetToken = new com.novanest.model.PasswordResetToken(
+					token, user, LocalDateTime.now().plusHours(1)
+			);
+			passwordResetTokenRepository.save(resetToken);
 
-		// Send reset link using MailService. Assumes MailService can send custom text.
-		// For simplicity, we use sendOtp method of MailService if it just sends text, or better add sendResetLink to MailService.
-		// Let's check MailService. Assuming we can't change it easily, let's just send it using a custom string if possible, or modify MailService next.
-		mailService.sendResetLink(user.getEmail(), token);
+			mailService.sendResetLink(user.getEmail(), token);
+		}
 
 		AuthResponse response = new AuthResponse();
-		response.setMessage("Password reset link sent to your email. Token: " + token);
-		response.setUsername(user.getUsername());
+		response.setMessage("If that email is registered, a password reset link has been sent.");
 		return response;
 	}
 
