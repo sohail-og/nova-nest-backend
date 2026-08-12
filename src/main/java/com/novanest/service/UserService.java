@@ -4,7 +4,7 @@ import com.novanest.dto.AuthResponse;
 import com.novanest.dto.LoginRequest;
 import com.novanest.dto.RegisterRequest;
 import com.novanest.dto.ChangePasswordRequest;
-import com.novanest.dto.ResetPasswordRequest;
+
 import com.novanest.exception.UserAlreadyExistsException;
 import com.novanest.exception.ValidationException;
 import com.novanest.model.User;
@@ -17,7 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.novanest.model.Role;
-import com.novanest.dto.ForgotPasswordRequest;
+
 import com.novanest.dto.VerifyOtpRequest;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
@@ -33,11 +33,10 @@ public class UserService {
 	private final CustomUserDetailsService customUserDetailsService;
 	private final MailService mailService;
 	private final OtpService otpService;
-	private final com.novanest.repository.PasswordResetTokenRepository passwordResetTokenRepository;
 
 	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
 			AuthenticationManager authenticationManager, CustomUserDetailsService customUserDetailsService,
-			MailService mailService, OtpService otpService, com.novanest.repository.PasswordResetTokenRepository passwordResetTokenRepository) {
+			MailService mailService, OtpService otpService) {
 
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -46,7 +45,7 @@ public class UserService {
 		this.customUserDetailsService = customUserDetailsService;
 		this.mailService = mailService;
 		this.otpService = otpService;
-		this.passwordResetTokenRepository = passwordResetTokenRepository;
+		
 	}
 
 	private void validatePasswordStrength(String password) {
@@ -177,58 +176,6 @@ public class UserService {
 
 		AuthResponse response = new AuthResponse();
 		response.setMessage("Password updated successfully");
-		response.setUsername(user.getUsername());
-		return response;
-	}
-
-	@Transactional
-	public AuthResponse sendResetLink(ForgotPasswordRequest request) {
-		Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
-
-		if (userOpt.isPresent()) {
-			User user = userOpt.get();
-			passwordResetTokenRepository.deleteByUser(user); // Clear old tokens
-			passwordResetTokenRepository.flush();
-
-			String token = java.util.UUID.randomUUID().toString();
-			com.novanest.model.PasswordResetToken resetToken = new com.novanest.model.PasswordResetToken(
-					token, user, LocalDateTime.now().plusHours(1)
-			);
-			passwordResetTokenRepository.save(resetToken);
-
-			mailService.sendResetLink(user.getEmail(), token);
-		}
-
-		AuthResponse response = new AuthResponse();
-		response.setMessage("If that email is registered, a password reset link has been sent.");
-		return response;
-	}
-
-	@Transactional
-	public AuthResponse resetPassword(ResetPasswordRequest request) {
-		com.novanest.model.PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
-				.orElseThrow(() -> new ValidationException("Invalid or expired reset token"));
-
-		if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-			passwordResetTokenRepository.delete(resetToken);
-			throw new ValidationException("Reset token has expired");
-		}
-
-		User user = resetToken.getUser();
-
-		if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-			throw new ValidationException("Passwords do not match");
-		}
-
-		validatePasswordStrength(request.getNewPassword());
-
-		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-		userRepository.save(user);
-
-		passwordResetTokenRepository.delete(resetToken);
-
-		AuthResponse response = new AuthResponse();
-		response.setMessage("Password reset successful");
 		response.setUsername(user.getUsername());
 		return response;
 	}
