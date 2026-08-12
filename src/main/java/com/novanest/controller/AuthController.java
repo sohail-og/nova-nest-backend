@@ -82,6 +82,11 @@ public class AuthController {
 	@PutMapping("/change-password")
 	public ResponseEntity<AuthResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request,
 			Principal principal) {
+		if (principal == null) {
+			AuthResponse response = new AuthResponse();
+			response.setMessage("Unauthorized: Please login to change password");
+			return ResponseEntity.status(401).body(response);
+		}
 		AuthResponse response = userService.changePassword(request, principal.getName());
 		return ResponseEntity.ok(response);
 	}
