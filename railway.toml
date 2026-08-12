@@ -1,5 +1,5 @@
 [build]
 builder = "NIXPACKS"
 
-[env]
-SPRING_PROFILES_ACTIVE = "prod"
+[deploy]
+startCommand = "java -jar target/*.jar --spring.profiles.active=prod"
