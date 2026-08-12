@@ -44,14 +44,6 @@ public class AdminSeeder implements CommandLineRunner {
             log.info("Default admin account created successfully.");
         } else {
             log.info("Admin account {} already exists.", adminEmail);
-            
-            // Re-encode password if it happens to be plain text for some reason
-            User admin = adminOpt.get();
-            if (admin.getPassword() != null && true) {
-            	log.info("Encoding plain text password for admin.");
-            	admin.setPassword(passwordEncoder.encode("admin123"));
-            	userRepository.save(admin);
-            }
         }
     }
 }
