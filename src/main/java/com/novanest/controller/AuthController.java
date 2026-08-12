@@ -40,19 +40,6 @@ public class AuthController {
 		return ResponseEntity.ok(authResponse);
 	}
 
-	@PostMapping("/send-otp")
-	public ResponseEntity<AuthResponse> sendOtp(@Valid @RequestBody ForgotPasswordRequest request) {
-
-		AuthResponse response = userService.sendOtp(request);
-
-		return ResponseEntity.ok(response);
-	}
-
-	@PostMapping("/verify-otp")
-	public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-		AuthResponse response = userService.verifyOtp(request);
-		return ResponseEntity.ok(response);
-	}
 
 	@PostMapping("/logout")
 	public ResponseEntity<AuthResponse> logout(
@@ -99,7 +86,7 @@ public class AuthController {
 	
 	@PostMapping("/forgot-password")
 	public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-		AuthResponse response = userService.sendOtp(request);
+		AuthResponse response = userService.sendResetLink(request);
 		return ResponseEntity.ok(response.getMessage());
 	}
 }

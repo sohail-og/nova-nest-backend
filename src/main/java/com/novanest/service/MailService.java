@@ -28,5 +28,22 @@ public class MailService {
         mailSender.send(message);
     }
 
+    public void sendResetLink(String toEmail, String token) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("Nova Nest Password Reset Link");
+
+        String resetLink = "https://nova-nest-frontend.vercel.app/reset-password?token=" + token + "&email=" + toEmail;
+
+        message.setText(
+                "Dear User,\n\n"
+                        + "Please click the following link to reset your password:\n"
+                        + resetLink
+                        + "\n\nThis link is valid for 1 hour."
+                        + "\n\nRegards,\nNova Nest Team");
+
+        mailSender.send(message);
+    }
+
 
 }

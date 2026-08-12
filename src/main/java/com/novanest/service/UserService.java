@@ -33,10 +33,11 @@ public class UserService {
 	private final CustomUserDetailsService customUserDetailsService;
 	private final MailService mailService;
 	private final OtpService otpService;
+	private final com.novanest.repository.PasswordResetTokenRepository passwordResetTokenRepository;
 
 	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
 			AuthenticationManager authenticationManager, CustomUserDetailsService customUserDetailsService,
-			MailService mailService, OtpService otpService) {
+			MailService mailService, OtpService otpService, com.novanest.repository.PasswordResetTokenRepository passwordResetTokenRepository) {
 
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -45,6 +46,7 @@ public class UserService {
 		this.customUserDetailsService = customUserDetailsService;
 		this.mailService = mailService;
 		this.otpService = otpService;
+		this.passwordResetTokenRepository = passwordResetTokenRepository;
 	}
 
 	private void validatePasswordStrength(String password) {
@@ -179,13 +181,42 @@ public class UserService {
 		return response;
 	}
 
-	public AuthResponse resetPassword(ResetPasswordRequest request) {
+	@Transactional
+	public AuthResponse sendResetLink(ForgotPasswordRequest request) {
 		User user = userRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new ValidationException("Email address does not exist"));
+				.orElseThrow(() -> new ValidationException("Email does not exist"));
 
-		if (!otpService.isEmailOtpVerified(user)) {
-			throw new ValidationException("OTP not verified or expired for this email. Please verify OTP first.");
+		passwordResetTokenRepository.deleteByUser(user); // Clear old tokens
+		passwordResetTokenRepository.flush();
+
+		String token = java.util.UUID.randomUUID().toString();
+		com.novanest.model.PasswordResetToken resetToken = new com.novanest.model.PasswordResetToken(
+				token, user, LocalDateTime.now().plusHours(1)
+		);
+		passwordResetTokenRepository.save(resetToken);
+
+		// Send reset link using MailService. Assumes MailService can send custom text.
+		// For simplicity, we use sendOtp method of MailService if it just sends text, or better add sendResetLink to MailService.
+		// Let's check MailService. Assuming we can't change it easily, let's just send it using a custom string if possible, or modify MailService next.
+		mailService.sendResetLink(user.getEmail(), token);
+
+		AuthResponse response = new AuthResponse();
+		response.setMessage("Password reset link sent to your email");
+		response.setUsername(user.getUsername());
+		return response;
+	}
+
+	@Transactional
+	public AuthResponse resetPassword(ResetPasswordRequest request) {
+		com.novanest.model.PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
+				.orElseThrow(() -> new ValidationException("Invalid or expired reset token"));
+
+		if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+			passwordResetTokenRepository.delete(resetToken);
+			throw new ValidationException("Reset token has expired");
 		}
+
+		User user = resetToken.getUser();
 
 		if (!request.getNewPassword().equals(request.getConfirmPassword())) {
 			throw new ValidationException("Passwords do not match");
@@ -196,42 +227,11 @@ public class UserService {
 		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 		userRepository.save(user);
 
-		otpService.clearOtp(user);
+		passwordResetTokenRepository.delete(resetToken);
 
 		AuthResponse response = new AuthResponse();
 		response.setMessage("Password reset successful");
 		response.setUsername(user.getUsername());
-		return response;
-	}
-
-	public AuthResponse sendOtp(ForgotPasswordRequest request) {
-		User user = userRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new ValidationException("Email does not exist"));
-
-		OtpToken otpToken = otpService.generateOtp(user);
-
-		mailService.sendOtp(request.getEmail(), otpToken.getOtp());
-
-		AuthResponse response = new AuthResponse();
-		response.setMessage("OTP sent successfully to your email");
-		response.setUsername(user.getUsername());
-
-		return response;
-	}
-
-	public AuthResponse verifyOtp(VerifyOtpRequest request) {
-		User user = userRepository.findByEmail(request.getEmail())
-			.orElseThrow(() -> new ValidationException("Email does not exist"));
-
-		boolean valid = otpService.verifyOtp(user, request.getOtp());
-
-		if (!valid) {
-			throw new ValidationException("Invalid or Expired OTP");
-		}
-
-		AuthResponse response = new AuthResponse();
-		response.setMessage("OTP Verified Successfully");
-
 		return response;
 	}
 
