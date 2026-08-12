@@ -201,7 +201,7 @@ public class UserService {
 		mailService.sendResetLink(user.getEmail(), token);
 
 		AuthResponse response = new AuthResponse();
-		response.setMessage("Password reset link sent to your email");
+		response.setMessage("Password reset link sent to your email. Token: " + token);
 		response.setUsername(user.getUsername());
 		return response;
 	}
