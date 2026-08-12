@@ -10,6 +10,12 @@ import java.util.Map;
 @RequestMapping("/api")
 public class HealthController {
 
+    private final com.novanest.config.DataSeeder dataSeeder;
+
+    public HealthController(com.novanest.config.DataSeeder dataSeeder) {
+        this.dataSeeder = dataSeeder;
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> healthCheck() {
         return ResponseEntity.ok(Map.of(
@@ -20,7 +26,7 @@ public class HealthController {
     }
 
     @GetMapping("/seed")
-    public ResponseEntity<Map<String, String>> seedData(org.springframework.beans.factory.annotation.Autowired com.novanest.config.DataSeeder dataSeeder) {
+    public ResponseEntity<Map<String, String>> seedData() {
         try {
             dataSeeder.run();
             return ResponseEntity.ok(Map.of(
