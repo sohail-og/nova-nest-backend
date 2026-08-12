@@ -12,6 +12,7 @@ public class MailService {
     private JavaMailSender mailSender;
 
     public void sendOtp(String toEmail, String otp) {
+
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(toEmail);
@@ -26,4 +27,31 @@ public class MailService {
 
         mailSender.send(message);
     }
+
+    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
+
+    @org.springframework.scheduling.annotation.Async
+    public void sendResetLink(String toEmail, String token) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject("Nova Nest Password Reset Link");
+
+            String resetLink = frontendUrl + "/reset-password?token=" + token + "&email=" + toEmail;
+
+            message.setText(
+                    "Dear User,\n\n"
+                            + "Please click the following link to reset your password:\n"
+                            + resetLink
+                            + "\n\nThis link is valid for 1 hour."
+                            + "\n\nRegards,\nNova Nest Team");
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Failed to send email to " + toEmail + ": " + e.getMessage());
+        }
+    }
+
+
 }

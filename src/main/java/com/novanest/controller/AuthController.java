@@ -6,7 +6,7 @@ import com.novanest.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.novanest.dto.ForgotPasswordRequest;
 import com.novanest.dto.VerifyOtpRequest;
 import java.security.Principal;
 
@@ -77,5 +77,16 @@ public class AuthController {
 		AuthResponse response = userService.changePassword(request, principal.getName());
 		return ResponseEntity.ok(response);
 	}
-}
 
+	@PutMapping("/reset-password")
+	public ResponseEntity<AuthResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+		AuthResponse response = userService.resetPassword(request);
+		return ResponseEntity.ok(response);
+	}
+	
+	@PostMapping("/forgot-password")
+	public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+		AuthResponse response = userService.sendResetLink(request);
+		return ResponseEntity.ok(response.getMessage());
+	}
+}
