@@ -28,12 +28,15 @@ public class MailService {
         mailSender.send(message);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
+
     public void sendResetLink(String toEmail, String token) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
         message.setSubject("Nova Nest Password Reset Link");
 
-        String resetLink = "https://nova-nest-frontend.vercel.app/reset-password?token=" + token + "&email=" + toEmail;
+        String resetLink = frontendUrl + "/reset-password?token=" + token + "&email=" + toEmail;
 
         message.setText(
                 "Dear User,\n\n"
